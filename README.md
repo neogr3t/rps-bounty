@@ -1,104 +1,67 @@
-# Cosmic Rock Paper Scissors
+# Neosmic RPS: Aptos Rock Paper Scissors Game
 
-## Project Description
+This repository contains an enhanced implementation of a Rock Paper Scissors game built on the Aptos blockchain, featuring a sleek React frontend. The project demonstrates the use of Aptos Move for creating a simple yet engaging on-chain game with additional features and improvements, coupled with a modern, responsive user interface.
 
-Cosmic Rock Paper Scissors is an innovative blockchain-based game that brings the classic rock-paper-scissors to the Aptos network. This decentralized application (dApp) offers a futuristic twist on the timeless game, allowing players to compete against an AI opponent in a cosmic-themed interface. The game leverages smart contracts for transparent gameplay and stores match results on-chain, ensuring fairness and immutability.
+## Features
 
-## Primary Purpose
+1. **Game State Tracking**: The game keeps track of overall statistics including games played, player wins, AI wins, and draws.
 
-The primary purpose of Cosmic Rock Paper Scissors is to demonstrate the potential of blockchain technology in gaming, specifically on the Aptos network. It aims to provide an engaging, user-friendly experience that introduces players to decentralized applications and smart contract interactions in a fun and familiar context.
+2. **Last Game Result**: The contract stores the result of the last game played, including both player and AI choices, and the outcome.
 
-## Objectives
+3. **Event Emission**: The game emits events for each play, allowing for easy tracking and potential integration with front-end applications.
 
-1. Showcase the capabilities of the Aptos blockchain for gaming applications
-2. Implement a secure and transparent gaming mechanism using smart contracts
-3. Create an intuitive and visually appealing user interface for seamless interaction
-4. Demonstrate the integration of blockchain wallets with web applications
-5. Provide a practical example of on-chain data storage and retrieval
+4. **Improved Randomness**: The AI's choice is generated using a simple randomness mechanism based on the current timestamp.
 
-## Key Features
+5. **View Functions**: Added view functions to easily retrieve the current game state and statistics.
 
-- Blockchain-based gameplay using Aptos smart contracts
-- Intuitive user interface with cosmic theme
-- Real-time game state updates and history tracking
-- Integration with Aptos wallets for secure transactions
-- On-chain storage of game results and statistics
-- AI opponent for single-player experience
-- Responsive design for various device sizes
+6. **React Frontend**: A modern, responsive user interface built with React and Ant Design components.
 
-## Demo Access
+7. **Wallet Integration**: Seamless integration with Aptos wallets using `@aptos-labs/wallet-adapter-react`.
 
-To play Cosmic Rock Paper Scissors:
+8. **Game History**: Keeps track of recent games and displays them in the UI.
 
-1. Visit the game's website (Provided URL)
-2. Connect your Aptos wallet (e.g., Petra)
-3. Ensure you have some test APT tokens on the Aptos Devnet
-4. Initialize the game and start playing!
+9. **Real-time Updates**: The UI updates in real-time after each game, showing the latest statistics and game results.
 
-Note: No specific login credentials are required. Players only need an Aptos wallet with Devnet APT tokens to interact with the game.
+10. **Animated UI Elements**: Engaging animations and transitions for a more interactive user experience.
 
-## Tech Stack
+## Frontend Components
 
-### Frontend
+- **WalletSelector**: Allows users to connect their Aptos wallet.
+- **Game Board**: Interactive buttons for selecting moves (Rock, Paper, Scissors).
+- **Statistics Display**: Shows current game stats including scores, games played, and win rate.
+- **Recent Games List**: Displays the history of recent games.
+- **Result Modal**: A pop-up that shows the result of each game round.
 
-- React: JavaScript library for building user interfaces
-- TypeScript: Typed superset of JavaScript for improved developer experience
-- Ant Design (antd): React UI library for design components
-- CSS: For custom styling and layout
+## How It Works
 
-### Blockchain Integration
+1. **Wallet Connection**: Users connect their Aptos wallet to interact with the game.
+2. **Game Initialization**: Players initialize their game state using the `initialize_game` function.
+3. **Playing a Game**: Users select their move (Rock, Paper, or Scissors) and submit it.
+4. **Result Calculation**: The smart contract determines the winner and updates the game state.
+5. **UI Update**: The frontend fetches the updated game state and displays the result in a modal.
 
-- Aptos SDK: For interacting with the Aptos blockchain
-- @aptos-labs/wallet-adapter-react: React hooks for Aptos wallet integration
-- @aptos-labs/wallet-adapter-ant-design: Ant Design components for Aptos wallet connection
+## Technologies Used
 
-### Smart Contract
+- Aptos Move: For the smart contract implementation.
+- React: For building the user interface.
+- Ant Design: For UI components and styling.
+- @aptos-labs/wallet-adapter-react: For Aptos wallet integration.
 
-- Move: Programming language for Aptos smart contracts
+## Getting Started
 
-### Blockchain Network
+To run this project locally:
 
-- Aptos: Layer 1 blockchain network (Devnet for development/testing)
+1. Clone the repository.
+2. Install dependencies with `npm install`.
+3. Update the `moduleAddress` in the React code to match your deployed Aptos module address.
+4. Start the development server with `npm start`.
 
-### State Management
+## Deployment
 
-- React Hooks (useState, useEffect): For local state management
+1. Deploy the Aptos Move module to your Aptos account.
+2. Build the React app for production with `npm run build`.
+3. Deploy the built frontend to your preferred hosting service.
 
-### Development Environment
+## License
 
-- Node.js: JavaScript runtime for development
-- npm/yarn: Package manager for JavaScript
-
-### Version Control
-
-- Git: For source code management
-
-### Styling
-
-- Custom CSS
-- Ant Design's built-in styling system
-
-### Icons
-
-- Ant Design Icons: Icon set from Ant Design
-
-### API Interaction
-
-- Aptos Provider: For interacting with Aptos blockchain API
-
-### Transaction Handling
-
-- Aptos SDK's transaction builder and signer
-
-### Development Tools
-
-- Web browser (Chrome, Brave) for testing and debugging
-- Developer tools for React and browser inspection
-
-### Hosting Service
-
-- Netlify (for deployment)
-
-### Image Hosting
-
-- Unsplash: For background image (as seen in the code)
+This project is open source and available under the [MIT License](LICENSE).
