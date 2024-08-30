@@ -9,4 +9,4 @@ rev = 'main'
 subdir = 'aptos-move/framework/aptos-framework'
 
 [addresses]
-rock_paper_scissors_addr='0x82fd59ce477adfde4f8a04a36df26c24cec7540ae9b398e1b6ab86f6e0a00945'
+rock_paper_scissors_addr='0x62283b2652e2675341f3803e78e628712676d0d02e5671a39ca72d16f1543e0b'

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { WalletSelector } from "@aptos-labs/wallet-adapter-ant-design";
 import { useWallet } from "@aptos-labs/wallet-adapter-react";
+
 import {
   Layout,
   Row,
@@ -15,6 +16,7 @@ import {
   Progress,
   List,
   Avatar,
+  Tag,
 } from "antd";
 import { Network, Provider } from "aptos";
 import {
@@ -25,32 +27,46 @@ import {
   BarChartOutlined,
 } from "@ant-design/icons";
 import "@aptos-labs/wallet-adapter-ant-design/dist/index.css";
+import { AptosClient } from 'aptos';
+
+
+const client = new AptosClient('https://fullnode.testnet.aptoslabs.com/v1');
+
 
 const { Title, Text } = Typography;
 const { Header, Content } = Layout;
 
 const provider = new Provider(Network.TESTNET);
 const moduleAddress =
-  "0x82fd59ce477adfde4f8a04a36df26c24cec7540ae9b398e1b6ab86f6e0a00945";
+  "0x62283b2652e2675341f3803e78e628712676d0d02e5671a39ca72d16f1543e0b";
 
-interface GameState {
-  playerScore: number;
-  aiScore: number;
-  gamesPlayed: number;
-  draws: number;
-  lastResult: number;
-  playerLastMove: number;
-  aiLastMove: number;
-}
+  interface GameState {
+    playerScore: number;
+    aiScore: number;
+    gamesPlayed: number;
+    draws: number;
+  }
 
-interface GameHistoryItem {
-  playerMove: string;
-  aiMove: string;
-  result: string;
-}
+  interface GameHistoryItem {
+    playerMove: string;
+    aiMove: string;
+    result: string;
+    sequenceNumber: string; // Use sequenceNumber instead of timestamp
+  }
+
+  
+  interface GameEvent {
+    data: {
+      player_choice: string;
+      ai_choice: string;
+      result: string;
+    };
+    sequence_number: string;
+    type: string;
+  }
 
 function App() {
-  const { account, signAndSubmitTransaction } = useWallet();
+  const { account, signAndSubmitTransaction,connected,network } = useWallet();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [gameInitialized, setGameInitialized] = useState(false);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -61,9 +77,36 @@ function App() {
   } | null>(null);
   const [gameHistory, setGameHistory] = useState<GameHistoryItem[]>([]);
   const [selectedMove, setSelectedMove] = useState<number | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+
 
   const moves = ["Rock", "Paper", "Scissors"];
   const results = ["Player Wins", "AI Wins", "Draw"];
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (account) {
+        try {
+          const resources: any[] = await client.getAccountResources(account.address);
+          const accountResource = resources.find((r) => r.type === '0x1::coin::CoinStore<0x1::aptos_coin::AptosCoin>');
+          
+          if (accountResource) {
+            const balanceValue = (accountResource.data as any).coin.value;
+            setBalance(balanceValue ? parseInt(balanceValue) / 100000000 : 0);
+          } else {
+            setBalance(0);
+          }
+        } catch (error) {
+          console.error('Error fetching balance:', error);
+        }
+      }
+    };
+
+    if (connected) {
+      fetchBalance();
+    }
+  }, [account, connected]);
+
 
   useEffect(() => {
     const storedHistory = localStorage.getItem('gameHistory');
@@ -71,31 +114,6 @@ function App() {
       setGameHistory(JSON.parse(storedHistory));
     }
   }, []);
-
-  const fetchGameState = async () => {
-    if (!account) return;
-    try {
-      const resource = await provider.getAccountResource(
-        account.address,
-        `${moduleAddress}::rock_paper_scissors::GameState`
-      );
-      const state = resource.data as any;
-      setGameState({
-        playerScore: Number(state.player_wins),
-        aiScore: Number(state.ai_wins),
-        gamesPlayed: Number(state.games_played),
-        draws: Number(state.draws),
-        lastResult: Number(state.last_game_result.result),
-        playerLastMove: Number(state.last_game_result.player_choice),
-        aiLastMove: Number(state.last_game_result.ai_choice),
-      });
-      setGameInitialized(true);
-    } catch (e) {
-      console.error("Error fetching game state:", e);
-      setGameInitialized(false);
-    }
-  };
-
   const initializeGame = async () => {
     if (!account) return;
     try {
@@ -116,7 +134,54 @@ function App() {
     }
   };
 
-  const playGame = async (moveIndex: number) => {
+  const fetchGameState = async () => {
+    if (!account) return;
+    try {
+      const resource = await provider.getAccountResource(
+        account.address,
+        `${moduleAddress}::rock_paper_scissors::GameState`
+      );
+      const state = resource.data as any;
+      setGameState({
+        playerScore: Number(state.player_wins),
+        aiScore: Number(state.ai_wins),
+        gamesPlayed: Number(state.games_played),
+        draws: Number(state.draws),
+      });
+      setGameInitialized(true);
+    } catch (e) {
+      console.error("Error fetching game state:", e);
+      setGameInitialized(false);
+      setGameState(null);
+    }
+  };
+
+  const fetchGameHistory = async () => {
+    if (!account || !gameInitialized) {
+      setGameHistory([]);
+      return;
+    }
+    try {
+      const events = await provider.getEventsByEventHandle(account.address, 
+        `${moduleAddress}::rock_paper_scissors::GameEventHandle`,
+        "game_events"
+      );
+      
+      const history = events.map((event: GameEvent) => ({
+        playerMove: moves[Number(event.data.player_choice)],
+        aiMove: moves[Number(event.data.ai_choice)],
+        result: results[Number(event.data.result)],
+        sequenceNumber: event.sequence_number
+      })).reverse().slice(0, 5);
+      
+      setGameHistory(history);
+    } catch (error) {
+      console.error("Error fetching game history:", error);
+      setGameHistory([]);
+    }
+  };
+
+   const playGame = async (moveIndex: number) => {
     if (!account) return;
     try {
       const payload = {
@@ -127,23 +192,35 @@ function App() {
       };
       const response = await signAndSubmitTransaction(payload);
       await provider.waitForTransaction(response.hash);
-      await fetchGameState();
-
-      if (gameState) {
-        const playerMove = moves[moveIndex];
-        const aiMove = moves[gameState.aiLastMove];
-        const result = results[gameState.lastResult];
+      
+      // Fetch the game event to get the AI's move and the result
+      const events = await provider.getEventsByEventHandle(account.address, 
+        `${moduleAddress}::rock_paper_scissors::GameEventHandle`,
+        "game_events"
+      );
+      
+      if (events.length > 0) {
+        const latestEvent = events[events.length - 1] as GameEvent;
+        const playerMove = moves[Number(latestEvent.data.player_choice)];
+        const aiMove = moves[Number(latestEvent.data.ai_choice)];
+        const result = results[Number(latestEvent.data.result)];
+        
         setModalContent({ playerMove, aiMove, result });
         setIsModalVisible(true);
 
-        const updatedHistory = [
-          { playerMove, aiMove, result },
-          ...gameHistory.slice(0, 4),
-        ];
-
+        // Update game history
+        const newHistoryItem: GameHistoryItem = { 
+          playerMove, 
+          aiMove, 
+          result,
+          sequenceNumber: latestEvent.sequence_number
+        };
+        const updatedHistory = [newHistoryItem, ...gameHistory].slice(0, 5);
         setGameHistory(updatedHistory);
-        localStorage.setItem('gameHistory', JSON.stringify(updatedHistory));
       }
+
+      // Fetch the updated game state after the move
+      await fetchGameState();
 
       antdMessage.success("Move submitted successfully!");
       setSelectedMove(null);
@@ -153,18 +230,55 @@ function App() {
     }
   };
 
+
+
   const calculateWinPercentage = (wins: number, total: number): string => {
     return total > 0 ? ((wins / total) * 100).toFixed(1) : "0.0";
   };
 
-    useEffect(() => {
+  useEffect(() => {
+    const fetchGameHistory = async () => {
+      if (!account) return;
+      try {
+        const events = await provider.getEventsByEventHandle(account.address, 
+          `${moduleAddress}::rock_paper_scissors::GameEventHandle`,
+          "game_events"
+        );
+        
+        const history = events.map((event: GameEvent) => {
+          return {
+            playerMove: moves[Number(event.data.player_choice)],
+            aiMove: moves[Number(event.data.ai_choice)],
+            result: results[Number(event.data.result)],
+            sequenceNumber: event.sequence_number
+          };
+        }).reverse().slice(0, 5);
+        
+        setGameHistory(history);
+      } catch (error) {
+        console.error("Error fetching game history:", error);
+      }
+    };
+
+    if (account) {
+      fetchGameHistory();
+    }
+  }, [account]);
+  useEffect(() => {
     if (account) {
       fetchGameState();
     } else {
       setGameInitialized(false);
       setGameState(null);
+      setGameHistory([]);
     }
   }, [account]);
+
+  useEffect(() => {
+    fetchGameHistory();
+  }, [gameInitialized, account]);
+
+ 
 
   const renderMoveButton = (move: string, index: number) => (
     <Button
@@ -224,22 +338,37 @@ function App() {
         backgroundSize: 'cover',
       }}
     >
-      <Header
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "0 20px",
-          background: "rgba(26, 41, 128, 0.8)",
-          height: "80px",
-          boxShadow: "0 2px 10px rgba(0, 0, 0, 0.2)",
-        }}
-      >
-        <Title level={3} style={{ color: "#fff", margin: 0, textShadow: "2px 2px 4px rgba(0,0,0,0.5)" }}>
-          <RocketOutlined /> Neosmic RPS
-        </Title>
-        <WalletSelector />
-      </Header>
+  <Header
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "0 20px",
+    background: "linear-gradient(135deg, rgba(26, 41, 128, 0.8), rgba(0, 0, 0, 0.8))",
+    height: "80px",
+    boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)",
+    borderBottom: "2px solid rgba(0, 255, 255, 0.2)",
+  }}
+>
+  <Title level={3} style={{ color: "#00ffff", margin: 0, textShadow: "2px 2px 10px rgba(0, 255, 255, 0.5)" }}>
+    <RocketOutlined style={{ marginRight: "10px" }} /> Neosmic RPS
+  </Title>
+  <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+      {account && (
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <Tag color="blue" style={{ padding: "2px 8px", fontSize: "12px" }}>
+            {network ? network.name : 'Unknown Network'}
+          </Tag>
+          <Tag color="green" style={{ padding: "2px 8px", fontSize: "12px" }}>
+            {balance !== null ? `${balance.toFixed(2)} APT` : 'Loading...'}
+          </Tag>
+        </div>
+      )}
+      <WalletSelector />
+    </div>
+</Header>
+
+
       <Content style={{ padding: "20px", height: "calc(100vh - 80px)", overflow: "hidden" }}>
         {!account ? (
           <Row justify="center" align="middle" style={{ height: "100%" }}>
@@ -299,35 +428,35 @@ function App() {
                   </Button>
                 ) : (
                   <Space direction="vertical" size="large" style={{ width: "100%" }}>
-                    <Title level={2} style={{ color: "#fff", textAlign: "center", margin: "0 0 20px", textShadow: "2px 2px 4px rgba(0,0,0,0.5)" }}>
-                      Choose your move:
-                    </Title>
-                    <Row justify="center" gutter={[32, 32]}>
-                      {["Rock", "Paper", "Scissors"].map((move, index) => (
-                        <Col key={move}>
-                          {renderMoveButton(move, index)}
-                        </Col>
-                      ))}
-                    </Row>
-                    <Button
-                      onClick={() => selectedMove !== null && playGame(selectedMove)}
-                      type="primary"
-                      size="large"
-                      disabled={selectedMove === null}
-                      style={{ 
-                        width: "100%",
-                        height: "60px",
-                        marginTop: "30px",
-                        background: "linear-gradient(135deg, #00ffff, #00bfff)",
-                        border: "none",
-                        fontSize: "24px",
-                        fontWeight: "bold",
-                        borderRadius: "30px",
-                      }}
-                    >
-                      Play!
-                    </Button>
-                  </Space>
+                  <Title level={2} style={{ color: "#fff", textAlign: "center", margin: "0 0 20px", textShadow: "2px 2px 4px rgba(0,0,0,0.5)" }}>
+                    Choose your move:
+                  </Title>
+                  <Row justify="center" gutter={[32, 32]}>
+                    {moves.map((move, index) => (
+                      <Col key={move}>
+                        {renderMoveButton(move, index)}
+                      </Col>
+                    ))}
+                  </Row>
+                  <Button
+                    onClick={() => selectedMove !== null && playGame(selectedMove)}
+                    type="primary"
+                    size="large"
+                    disabled={selectedMove === null}
+                    style={{ 
+                      width: "100%",
+                      height: "60px",
+                      marginTop: "30px",
+                      background: "linear-gradient(135deg, #00ffff, #00bfff)",
+                      border: "none",
+                      fontSize: "24px",
+                      fontWeight: "bold",
+                      borderRadius: "30px",
+                    }}
+                  >
+                    Play!
+                  </Button>
+                </Space>
                 )}
               </Card>
             </Col>
@@ -335,6 +464,8 @@ function App() {
               <Space direction="vertical" size="large" style={{ width: "100%", paddingRight: "20px" }}>
                 {gameState && (
                   <>
+                      
+
                     <Row gutter={[16, 16]}>
                       <Col span={12}>
                         {renderStatCard("Player Score", gameState.playerScore, <UserOutlined />, "#ffd700")}
@@ -374,33 +505,37 @@ function App() {
                   </>
                 )}
                 <Card
-                  title={<Title level={4} style={{ color: "#fff", margin: 0 }}>Recent Games</Title>}
-                  style={{
-                    background: "rgba(26, 41, 128, 0.7)",
-                    borderRadius: "15px",
-                    boxShadow: "0 5px 15px rgba(0, 0, 0, 0.3)",
-                    border: "none",
-                    backdropFilter: "blur(10px)",
-                  }}
-                >
-                  <List
-                    itemLayout="horizontal"
-                    dataSource={gameHistory.slice(0, 5)}
-                    renderItem={(game, index) => (
-                      <List.Item>
-                        <List.Item.Meta
-                          avatar={<Avatar icon={<UserOutlined />} style={{ backgroundColor: "#00ffff" }} />}
-                          title={<span style={{ color: "#fff", fontSize: "14px" }}>Game {gameHistory.length - index}</span>}
-                          description={
-                            <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px" }}>
-                              You: {game.playerMove} | AI: {game.aiMove} | Result: {game.result}
-                            </span>
-                          }
+                      title={<Title level={4} style={{ color: "#fff", margin: 0 }}>Recent Games</Title>}
+                      style={{
+                        background: "rgba(26, 41, 128, 0.7)",
+                        borderRadius: "15px",
+                        boxShadow: "0 5px 15px rgba(0, 0, 0, 0.3)",
+                        border: "none",
+                        backdropFilter: "blur(10px)",
+                      }}
+                    >
+                      {gameHistory.length > 0 ? (
+                        <List
+                          itemLayout="horizontal"
+                          dataSource={gameHistory}
+                          renderItem={(game, index) => (
+                            <List.Item>
+                              <List.Item.Meta
+                                avatar={<Avatar icon={<UserOutlined />} style={{ backgroundColor: "#00ffff" }} />}
+                                title={<span style={{ color: "#fff", fontSize: "14px" }}>Game {index + 1}</span>}
+                                description={
+                                  <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "12px" }}>
+                                    You: {game.playerMove} | AI: {game.aiMove} | Result: {game.result}
+                                  </span>
+                                }
+                              />
+                            </List.Item>
+                          )}
                         />
-                      </List.Item>
-                    )}
-                  />
-                </Card>
+                      ) : (
+                        <Text style={{ color: "#fff" }}>No games played yet.</Text>
+                      )}
+                    </Card>
               </Space>
             </Col>
           </Row>
@@ -408,70 +543,69 @@ function App() {
       </Content>
 
       <Modal
-        visible={isModalVisible}
-        onOk={() => setIsModalVisible(false)}
-        onCancel={() => setIsModalVisible(false)}
-        footer={null} 
-        bodyStyle={{ 
-          background: "linear-gradient(135deg, rgba(26, 41, 128, 0.9), rgba(0, 0, 0, 0.9))",
-          borderRadius: "20px",
-          boxShadow: "0 0 30px rgba(0, 255, 255, 0.3)",
-          border: "1px solid rgba(0, 255, 255, 0.2)",
-          padding: "0",
-        }}
-        width={400}
-        centered
-      >
-        {modalContent && (
-          <div style={{ padding: "30px", textAlign: "center" }}>
-            <Title level={2} style={{ color: "#00ffff", marginBottom: "30px", textShadow: "0 0 10px rgba(0, 255, 255, 0.5)" }}>
-              Game Result
-            </Title>
-            <Space direction="vertical" size="large" style={{ width: "100%" }}>
-              <Card
-                style={{
-                  background: "rgba(255, 255, 255, 0.1)",
-                  borderRadius: "15px",
-                  border: "1px solid rgba(0, 255, 255, 0.3)",
-                }}
-              >
-                <Statistic
-                  title={<span style={{ color: "#fff" }}>Your Move</span>}
-                  value={modalContent.playerMove}
-                  valueStyle={{ color: "#00ffff", fontSize: "24px" }}
-                  prefix={<UserOutlined style={{ color: "#00ffff" }} />}
-                />
-              </Card>
-              <Card
-                style={{
-                  background: "rgba(255, 255, 255, 0.1)",
-                  borderRadius: "15px",
-                  border: "1px solid rgba(255, 69, 0, 0.3)",
-                }}
-              >
-                <Statistic
-                  title={<span style={{ color: "#fff" }}>AI's Move</span>}
-                  value={modalContent.aiMove}
-                  valueStyle={{ color: "#ff4500", fontSize: "24px" }}
-                  prefix={<RobotOutlined style={{ color: "#ff4500" }} />}
-                />
-              </Card>
-              <Card
-                style={{
-                  background: "rgba(255, 255, 255, 0.1)",
-                  borderRadius: "15px",
-                  border: "1px solid rgba(0, 206, 209, 0.3)",
-                }}
-              >
-                <Statistic
-                  title={<span style={{ color: "#fff" }}>Result</span>}
-                  value={modalContent.result}
-                  valueStyle={{ color: "#00ced1", fontSize: "24px", fontWeight: "bold" }}
-                  prefix={<TrophyOutlined style={{ color: "#00ced1" }} />}
-                />
-              </Card>
-            </Space>
-            <Button
+  visible={isModalVisible}
+  onOk={() => setIsModalVisible(false)}
+  onCancel={() => setIsModalVisible(false)}
+  footer={null}
+  bodyStyle={{ 
+    background: "linear-gradient(135deg, rgba(26, 41, 128, 0.9), rgba(0, 0, 0, 0.9))",
+    borderRadius: "20px",
+    boxShadow: "0 0 30px rgba(0, 255, 255, 0.3)",
+    border: "1px solid rgba(0, 255, 255, 0.2)",
+    padding: "0",
+  }}
+  width={400}
+  centered
+>
+  {modalContent && (
+    <div style={{ position: "relative", padding: "30px", textAlign: "center" }}>
+      <Title level={2} style={{ color: "#00ffff", marginBottom: "30px", textShadow: "0 0 10px rgba(0, 255, 255, 0.5)" }}>
+        Game Result
+      </Title>
+      <Space direction="vertical" size="large" style={{ width: "100%" }}>
+        <Card
+          style={{
+            background: "rgba(255, 255, 255, 0.1)",
+            borderRadius: "15px",
+            border: "1px solid rgba(0, 255, 255, 0.3)",
+          }}
+        >
+          <Statistic
+            title={<span style={{ color: "#fff" }}>Your Move</span>}
+            value={modalContent.playerMove}
+            valueStyle={{ color: "#00ffff", fontSize: "24px" }}
+            prefix={<UserOutlined style={{ color: "#00ffff" }} />}
+          />
+        </Card>
+        <Card
+          style={{
+            background: "rgba(255, 255, 255, 0.1)",
+            borderRadius: "15px",
+            border: "1px solid rgba(255, 69, 0, 0.3)",
+          }}
+        >
+          <Statistic
+            title={<span style={{ color: "#fff" }}>AI's Move</span>}
+            value={modalContent.aiMove}
+            valueStyle={{ color: "#ff4500", fontSize: "24px" }}
+            prefix={<RobotOutlined style={{ color: "#ff4500" }} />}
+          />
+        </Card>
+        <Card
+          style={{
+            background: "rgba(255, 255, 255, 0.1)",
+            borderRadius: "15px",
+            border: "1px solid rgba(0, 206, 209, 0.3)",
+          }}
+        >
+          <Statistic
+            title={<span style={{ color: "#fff" }}>Result</span>}
+            value={modalContent.result}
+            valueStyle={{ color: "#00ced1", fontSize: "24px", fontWeight: "bold" }}
+          />
+        </Card>
+      </Space>
+      <Button
               type="primary"
               onClick={() => setIsModalVisible(false)}
               style={{ 
@@ -488,9 +622,10 @@ function App() {
             >
               Close
             </Button>
-          </div>
-        )}
-      </Modal>
+    </div>
+  )}
+</Modal>
+
     </Layout>
   );
 }

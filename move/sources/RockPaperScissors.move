@@ -23,7 +23,6 @@ module rock_paper_scissors_addr::rock_paper_scissors {
         player_wins: u64,
         ai_wins: u64,
         draws: u64,
-        last_game_result: LastGameResult,
     }
 
     struct LastGameResult has store, drop {
@@ -51,11 +50,6 @@ module rock_paper_scissors_addr::rock_paper_scissors {
                 player_wins: 0,
                 ai_wins: 0,
                 draws: 0,
-                last_game_result: LastGameResult {
-                    player_choice: 3,
-                    ai_choice: 3,
-                    result: 3,
-                },
             });
             move_to(account, GameEventHandle {
                 game_events: account::new_event_handle<GameEvent>(account),
@@ -63,7 +57,7 @@ module rock_paper_scissors_addr::rock_paper_scissors {
         };
     }
 
-    public entry fun play_game(account: &signer, player_choice: u8) acquires GameState, GameEventHandle {
+   public entry fun play_game(account: &signer, player_choice: u8) acquires GameState, GameEventHandle {
         let account_addr = signer::address_of(account);
         assert!(exists<GameState>(account_addr), 1); // Game not initialized
         assert!(player_choice <= 2, 2); // Invalid choice
@@ -83,12 +77,6 @@ module rock_paper_scissors_addr::rock_paper_scissors {
             game_state.draws = game_state.draws + 1;
         };
 
-        game_state.last_game_result = LastGameResult {
-            player_choice,
-            ai_choice,
-            result,
-        };
-
         // Emit game event
         let game_event_handle = borrow_global_mut<GameEventHandle>(account_addr);
         event::emit_event(&mut game_event_handle.game_events, GameEvent {
@@ -106,7 +94,7 @@ module rock_paper_scissors_addr::rock_paper_scissors {
         else { SCISSORS }
     }
 
- fun determine_winner(player_choice: u8, ai_choice: u8): u8 {
+    fun determine_winner(player_choice: u8, ai_choice: u8): u8 {
         if (player_choice == ai_choice) {
             DRAW
         } else if (
@@ -120,18 +108,14 @@ module rock_paper_scissors_addr::rock_paper_scissors {
         }
     }
 
-
     #[view]
-    public fun get_game_state(account_addr: address): (u64, u64, u64, u64, u8, u8, u8) acquires GameState {
+    public fun get_game_state(account_addr: address): (u64, u64, u64, u64) acquires GameState {
         let game_state = borrow_global<GameState>(account_addr);
         (
             game_state.games_played,
             game_state.player_wins,
             game_state.ai_wins,
-            game_state.draws,
-            game_state.last_game_result.player_choice,
-            game_state.last_game_result.ai_choice,
-            game_state.last_game_result.result
+            game_state.draws
         )
     }
 }
