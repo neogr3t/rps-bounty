@@ -6,23 +6,19 @@ This repository contains an enhanced implementation of a Rock Paper Scissors gam
 
 1. **Game State Tracking**: The game keeps track of overall statistics including games played, player wins, AI wins, and draws.
 
-2. **Last Game Result**: The contract stores the result of the last game played, including both player and AI choices, and the outcome.
+2. **Event Emission**: The game emits events for each play, allowing for easy tracking and potential integration with front-end applications.
 
-3. **Event Emission**: The game emits events for each play, allowing for easy tracking and potential integration with front-end applications.
+3. **Improved Randomness**: The AI's choice is generated using a simple randomness mechanism based on the current timestamp.
 
-4. **Improved Randomness**: The AI's choice is generated using a simple randomness mechanism based on the current timestamp.
+4. **View Functions**: Added view functions to easily retrieve the current game state and statistics.
 
-5. **View Functions**: Added view functions to easily retrieve the current game state and statistics.
+5. **React Frontend**: A modern, responsive user interface built with React and Ant Design components.
 
-6. **React Frontend**: A modern, responsive user interface built with React and Ant Design components.
+6. **Wallet Integration**: Seamless integration with Aptos wallets using `@aptos-labs/wallet-adapter-react`.
 
-7. **Wallet Integration**: Seamless integration with Aptos wallets using `@aptos-labs/wallet-adapter-react`.
+7. **Game History**: Keeps track of recent games and displays them in the UI.
 
-8. **Game History**: Keeps track of recent games and displays them in the UI.
-
-9. **Real-time Updates**: The UI updates in real-time after each game, showing the latest statistics and game results.
-
-10. **Animated UI Elements**: Engaging animations and transitions for a more interactive user experience.
+8. **Real-time Updates**: The UI updates in real-time after each game, showing the latest statistics and game results.
 
 ## Frontend Components
 
