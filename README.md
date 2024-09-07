@@ -43,6 +43,9 @@ This repository contains an enhanced implementation of a Rock Paper Scissors gam
 - Ant Design: For UI components and styling.
 - @aptos-labs/wallet-adapter-react: For Aptos wallet integration.
 
+# Demo Video
+https://github.com/user-attachments/assets/ab8805cd-aea1-4c45-a961-3a728b2ff426
+
 ## Getting Started
 
 To run this project locally:
