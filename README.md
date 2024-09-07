@@ -1,6 +1,6 @@
 # Neosmic RPS: Aptos Rock Paper Scissors Game
 
-This repository contains an enhanced implementation of a Rock Paper Scissors game built on the Aptos blockchain, featuring a sleek React frontend. The project demonstrates the use of Aptos Move for creating a simple yet engaging on-chain game with additional features and improvements, coupled with a modern, responsive user interface.
+This repository contains an enhanced implementation of a Rock Paper Scissors game built on the Aptos blockchain, featuring a sleek React frontend. It showcases the use of Aptos Move for creating a simple yet engaging on-chain game with additional features and improvements, coupled with a modern, responsive user interface.
 
 ## Features
 
